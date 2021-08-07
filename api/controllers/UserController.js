@@ -4,19 +4,8 @@
  * @description :: Server-side actions for handling incoming requests.
  * @help        :: See https://sailsjs.com/docs/concepts/actions
  */
-const admin = require('firebase-admin');
 
-
-var serviceAccount = require("../../user-management-api-fbb99-firebase-adminsdk-j797m-a21b886ae0.json");
-const User = require('../models/User');
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
-
-
-const db = admin.firestore();
-const users = db.collection('users')
+const DB = require("../services/DB");
 
 const validateEmail = email => {
   const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
@@ -35,12 +24,13 @@ const validateAge = age => {
 
 
 module.exports = {
-  create: async (req, res) => {
+  register: async (req, res) => {
 
     let { username, email, password, age } = req.allParams();
-    username = username.trim()
-    email = email.trim()
-    password = password.trim()
+    username = typeof username== 'undefined' ? null : username.trim()
+    email =  typeof email== 'undefined' ? null : email.trim()
+    password = typeof password== 'undefined' ? null : password.trim()
+
 
     //check if all fields filled
     if (!(username && email && password && age)) return res.badRequest({ msg: "please fill all fields!" })
@@ -58,16 +48,16 @@ module.exports = {
 
 
     //check if username is unique and doesn't exist on db.
-    let user = await users.where('username', '==', username).get()
+    let user = await DB.Users.where('username', '==', username).get()
     if (!user.empty) return res.badRequest({ msg: "this username alredy taken!!" })
 
     //check if email is unique and doesn't exist on db.
-    user = await users.where('email', '==', email).get()
+    user = await DB.Users.where('email', '==', email).get()
     if (!user.empty) return res.badRequest({ msg: "this email alredy taken!!" })
 
 
     try {
-      await users.add({ username, email, password, age })
+      await DB.Users.add({ username, email, password, age , role:"user" })
       res.ok({ msg: "user created successfully!" })
     } catch (error) {
       res.serverError(error)
@@ -77,34 +67,86 @@ module.exports = {
   },
 
 
-  login: async (req, res) => {
+  userLogin: async (req, res) => {
     let { username, password } = req.allParams();
-    username = username.trim()
-    password = password.trim()
-
-
+    username = typeof username== 'undefined' ? null : username.trim()
+    password = typeof password== 'undefined' ? null : password.trim()
 
     //check if all fields filled
     if (!(username && password)) return res.badRequest({ msg: "please fill all fields!" })
 
-
     //check if username is  exist on db.
-    let user = await users.where('username', '==', username).get()
+    let user = await DB.Users.where('username', '==', username).get()
     if (user.empty) return res.notFound()
-
-
-
-
 
     //compare password to user
     const useId = user.docs[0].id
-     user = user.docs[0].data();
+    user = user.docs[0].data();
     if (user.password !== password) return res.badRequest({ msg: "password incorrect!" })
+    console.log(user);
 
-    res.send({ token: jwToken.issue({ id: useId })})
+    res.send({ token: jwToken.issue({ id: useId , role:user.role }) })
+  },
+
+  getUserProfile: async (req, res) => {
+    const user = (await DB.Users.doc(req.user.id).get()).data()
+    if (user.empty) return res.notFound()
+    delete user.password
+    res.ok(user)
+  },
+  updateUserProfile: async (req, res) => {
+
+    let { username, email, age } = req.allParams();
+    username = username.trim()
+    email = email.trim()
+
+    //check if all fields filled
+    if (!(username && email && age)) return res.badRequest({ msg: "please fill all fields!" })
 
 
+    //check if email is valid
+    if (!validateEmail(email)) return res.badRequest({ msg: "please enter valid email!" })
 
+
+    //check if age is valid (should be between 18 and 50)
+    if (!validateAge(age)) return res.badRequest({ msg: "please enter valid age!" })
+
+    //check if username is unique and doesn't exist on db.
+    let user = await DB.Users.where('username', '==', username).get()
+    if (!user.empty && (user.docs[0].id !== req.user.id)) return res.badRequest({ msg: "this username alredy taken!!" })
+
+
+    try {
+      user = await DB.Users.doc(req.user.id).update({ username, email, age })
+      res.ok({ username, email, age })
+    } catch (error) {
+      res.badRequest({ msg: "fail updating user profile!" })
+    }
+  },
+  adminLogin: async (req, res) => {
+    let { username, password } = req.allParams();
+    username = typeof username== 'undefined' ? null : username.trim()
+    password = typeof password== 'undefined' ? null : password.trim()
+
+    //check if all fields filled
+    if (!(username && password)) return res.badRequest({ msg: "please fill all fields!" })
+
+    //check if username is  exist on db.
+    let user = await DB.Users.where('username', '==', username).get()
+    if (user.empty || user.docs[0].data().role === 'user') return res.notFound()
+
+    //compare password to user
+    const useId = user.docs[0].id
+    user = user.docs[0].data();
+    if (user.password !== password) return res.badRequest({ msg: "password incorrect!" })
+    console.log(user);
+
+    res.send({ token: jwToken.issue({ id: useId , role:user.role }) })
+  },
+
+  getUsers:async(req,res)=>{
+    res.send('users!!')
   }
+
 };
 

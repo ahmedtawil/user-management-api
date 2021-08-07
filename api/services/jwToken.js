@@ -8,7 +8,7 @@ module.exports = {
             payload,
             tokenSecret, // Token Secret that we sign it with
             {
-                expiresIn: "30 days" // Token Expire time
+                expiresIn: "15 days" // Token Expire time
             });
     },
 
