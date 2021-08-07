@@ -27,9 +27,10 @@ module.exports = {
   register: async (req, res) => {
 
     let { username, email, password, age } = req.allParams();
-    username = typeof username== 'undefined' ? null : username.trim()
-    email =  typeof email== 'undefined' ? null : email.trim()
-    password = typeof password== 'undefined' ? null : password.trim()
+    username = typeof username == 'undefined' ? null : username.trim()
+    email = typeof email == 'undefined' ? null : email.trim()
+    password = typeof password == 'undefined' ? null : password.trim()
+    age = typeof age == 'number' ? age : null
 
 
     //check if all fields filled
@@ -57,7 +58,7 @@ module.exports = {
 
 
     try {
-      await DB.Users.add({ username, email, password, age , role:"user" })
+      await DB.Users.add({ username, email, password, age, role: "user" })
       res.ok({ msg: "user created successfully!" })
     } catch (error) {
       res.serverError(error)
@@ -69,8 +70,8 @@ module.exports = {
 
   userLogin: async (req, res) => {
     let { username, password } = req.allParams();
-    username = typeof username== 'undefined' ? null : username.trim()
-    password = typeof password== 'undefined' ? null : password.trim()
+    username = typeof username == 'undefined' ? null : username.trim()
+    password = typeof password == 'undefined' ? null : password.trim()
 
     //check if all fields filled
     if (!(username && password)) return res.badRequest({ msg: "please fill all fields!" })
@@ -85,7 +86,7 @@ module.exports = {
     if (user.password !== password) return res.badRequest({ msg: "password incorrect!" })
     console.log(user);
 
-    res.send({ token: jwToken.issue({ id: useId , role:user.role }) })
+    res.send({ token: jwToken.issue({ id: useId, role: user.role }) })
   },
 
   getUserProfile: async (req, res) => {
@@ -94,19 +95,19 @@ module.exports = {
     delete user.password
     res.ok(user)
   },
+
   updateUserProfile: async (req, res) => {
 
     let { username, email, age } = req.allParams();
-    username = username.trim()
-    email = email.trim()
+    username = typeof username == 'undefined' ? null : username.trim()
+    email = typeof email == 'undefined' ? null : email.trim()
+    age = typeof age == 'number' ? age : null
 
     //check if all fields filled
     if (!(username && email && age)) return res.badRequest({ msg: "please fill all fields!" })
 
-
     //check if email is valid
     if (!validateEmail(email)) return res.badRequest({ msg: "please enter valid email!" })
-
 
     //check if age is valid (should be between 18 and 50)
     if (!validateAge(age)) return res.badRequest({ msg: "please enter valid age!" })
@@ -123,10 +124,11 @@ module.exports = {
       res.badRequest({ msg: "fail updating user profile!" })
     }
   },
+
   adminLogin: async (req, res) => {
     let { username, password } = req.allParams();
-    username = typeof username== 'undefined' ? null : username.trim()
-    password = typeof password== 'undefined' ? null : password.trim()
+    username = typeof username == 'undefined' ? null : username.trim()
+    password = typeof password == 'undefined' ? null : password.trim()
 
     //check if all fields filled
     if (!(username && password)) return res.badRequest({ msg: "please fill all fields!" })
@@ -139,13 +141,27 @@ module.exports = {
     const useId = user.docs[0].id
     user = user.docs[0].data();
     if (user.password !== password) return res.badRequest({ msg: "password incorrect!" })
-    console.log(user);
-
-    res.send({ token: jwToken.issue({ id: useId , role:user.role }) })
+    res.send({ token: jwToken.issue({ id: useId, role: user.role }) })
   },
 
-  getUsers:async(req,res)=>{
-    res.send('users!!')
+  getUsers: async (req, res) => {
+    const query = req.query.limit
+    const limit = (typeof query === 'undefined') ? 1 : (Number.isNaN(parseInt(query))) ? 1 : (query <= 0) ? 1 : parseInt(query)
+    let snapshot = await DB.Users.where('role', '!=', 'admin').limit(limit).get()
+
+    const users = [];
+    snapshot.forEach(doc => {
+      const userData = doc.data()
+
+      users.push({
+        id:doc.id,
+        username : userData.username,
+        email:userData.email,
+        age:userData.age
+      })
+    })
+
+    res.ok(users)
   }
 
 };
