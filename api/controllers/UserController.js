@@ -49,11 +49,21 @@ module.exports = {
 
 
     //check if username is unique and doesn't exist on db.
-    let user = await DB.Users.where('username', '==', username).get()
+    let user
+    try {
+      user = await DB.Users.where('username', '==', username).get()
+    } catch (error) {
+      return res.serverError(error)
+    }
     if (!user.empty) return res.badRequest({ msg: "this username alredy taken!!" })
 
     //check if email is unique and doesn't exist on db.
-    user = await DB.Users.where('email', '==', email).get()
+    
+    try {
+      user = await DB.Users.where('email', '==', email).get()
+    } catch (error) {
+      return res.serverError(error)
+    }
     if (!user.empty) return res.badRequest({ msg: "this email alredy taken!!" })
 
 
@@ -77,20 +87,30 @@ module.exports = {
     if (!(username && password)) return res.badRequest({ msg: "please fill all fields!" })
 
     //check if username is  exist on db.
-    let user = await DB.Users.where('username', '==', username).get()
+    let user
+    try {
+      user = await DB.Users.where('username', '==', username).get()
+    } catch (error) {
+      return res.serverError(error)
+    }
     if (user.empty) return res.notFound()
 
     //compare password to user
     const useId = user.docs[0].id
     user = user.docs[0].data();
     if (user.password !== password) return res.badRequest({ msg: "password incorrect!" })
-    console.log(user);
 
     res.send({ token: jwToken.issue({ id: useId, role: user.role }) })
   },
 
   getUserProfile: async (req, res) => {
-    const user = (await DB.Users.doc(req.user.id).get()).data()
+    let user
+    try {
+      user = (await DB.Users.doc(req.user.id).get()).data()
+    } catch (error) {
+      return res.serverError()
+    }
+
     if (user.empty) return res.notFound()
     delete user.password
     res.ok(user)
@@ -113,10 +133,14 @@ module.exports = {
     if (!validateAge(age)) return res.badRequest({ msg: "please enter valid age!" })
 
     //check if username is unique and doesn't exist on db.
-    let user = await DB.Users.where('username', '==', username).get()
+    let user
+    try {
+      user = await DB.Users.where('username', '==', username).get()
+    } catch (error) {
+      return res.serverError(error)
+    }
     if (!user.empty && (user.docs[0].id !== req.user.id)) return res.badRequest({ msg: "this username alredy taken!!" })
-
-
+    
     try {
       user = await DB.Users.doc(req.user.id).update({ username, email, age })
       res.ok({ username, email, age })
@@ -134,7 +158,12 @@ module.exports = {
     if (!(username && password)) return res.badRequest({ msg: "please fill all fields!" })
 
     //check if username is  exist on db.
-    let user = await DB.Users.where('username', '==', username).get()
+    let user 
+    try {
+      user = await DB.Users.where('username', '==', username).get()
+    } catch (error) {
+      return res.serverError(error)
+    }
     if (user.empty || user.docs[0].data().role === 'user') return res.notFound()
 
     //compare password to user
@@ -147,12 +176,17 @@ module.exports = {
   getUsers: async (req, res) => {
     const query = req.query.limit
     const limit = (typeof query === 'undefined') ? 1 : (Number.isNaN(parseInt(query))) ? 1 : (query <= 0) ? 1 : parseInt(query)
-    let snapshot = await DB.Users.where('role', '!=', 'admin').limit(limit).get()
+    
+    let snapshot
+    try {
+      snapshot = await DB.Users.where('role', '!=', 'admin').limit(limit).get()
+    } catch (error) {
+      return res.serverError(error)
+    }
 
     const users = [];
     snapshot.forEach(doc => {
       const userData = doc.data()
-
       users.push({
         id:doc.id,
         username : userData.username,
