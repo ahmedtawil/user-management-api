@@ -23,6 +23,7 @@ module.exports.policies = {
     '*': 'isAuthorized',
     'register': true,
     'userLogin':true, // We dont need authorization here, allowing public access
+    'adminLogin':true,
     'getusers':['isAuthorized' , 'isAdmin'],
   
   }

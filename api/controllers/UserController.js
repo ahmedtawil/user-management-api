@@ -66,6 +66,13 @@ module.exports = {
     }
     if (!user.empty) return res.badRequest({ msg: "this email alredy taken!!" })
 
+    //hash password to save in db
+    try {
+      password = await bcrypt.hash(password)
+    } catch (error) {
+      return res.serverError(error)
+    }
+
 
     try {
       await DB.Users.add({ username, email, password, age, role: "user" })
@@ -83,6 +90,8 @@ module.exports = {
     username = typeof username == 'undefined' ? null : username.trim()
     password = typeof password == 'undefined' ? null : password.trim()
 
+    
+
     //check if all fields filled
     if (!(username && password)) return res.badRequest({ msg: "please fill all fields!" })
 
@@ -98,7 +107,14 @@ module.exports = {
     //compare password to user
     const useId = user.docs[0].id
     user = user.docs[0].data();
-    if (user.password !== password) return res.badRequest({ msg: "password incorrect!" })
+
+
+    try {
+      const isCorrect = await bcrypt.compare(password , user.password)
+      if (!isCorrect) return res.badRequest({ msg: "password incorrect!" })
+    } catch (error) {
+      return res.serverError(error)
+    }
 
     res.send({ token: jwToken.issue({ id: useId, role: user.role }) })
   },

@@ -1,5 +1,6 @@
-const jwt = require('jsonwebtoken'),
-    tokenSecret = "RI4fs2cDQQ9CxIe55AsEZMxTEYCpplIV";
+const jwt = require('jsonwebtoken')
+
+tokenSecret = "RI4fs2cDQQ9CxIe55AsEZMxTEYCpplIV";
 
 module.exports = {
     // Generates a token from supplied payload
@@ -17,7 +18,7 @@ module.exports = {
         return jwt.verify(
             token, // The token to be verified
             tokenSecret, // Same token we used to sign
-            {}, 
+            {},
             callback //Pass errors or decoded token to callback
         );
     }
