@@ -104,10 +104,9 @@ module.exports = {
     }
     if (user.empty) return res.notFound()
 
-    //compare password to user
+    //compare password that user enter to existing password on 
     const useId = user.docs[0].id
     user = user.docs[0].data();
-
 
     try {
       const isCorrect = await bcrypt.compare(password , user.password)
@@ -123,13 +122,14 @@ module.exports = {
     let user
     try {
       user = (await DB.Users.doc(req.user.id).get()).data()
+      if (user.empty) return res.notFound()
+      delete user.password
+      res.ok(user)
+  
     } catch (error) {
       return res.serverError()
     }
 
-    if (user.empty) return res.notFound()
-    delete user.password
-    res.ok(user)
   },
 
   updateUserProfile: async (req, res) => {
@@ -185,7 +185,13 @@ module.exports = {
     //compare password to user
     const useId = user.docs[0].id
     user = user.docs[0].data();
-    if (user.password !== password) return res.badRequest({ msg: "password incorrect!" })
+    try {
+      const isCorrect = await bcrypt.compare(password , user.password)
+      if (!isCorrect) return res.badRequest({ msg: "password incorrect!" })
+    } catch (error) {
+      return res.serverError(error)
+    }
+
     res.send({ token: jwToken.issue({ id: useId, role: user.role }) })
   },
 
